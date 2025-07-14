@@ -1,0 +1,25 @@
+{
+    "StartAt": "ValidateOrder",
+    "States": {
+      "ValidateOrder": {
+        "Type": "Task",
+        "Resource": "${validator_arn}",
+        "Next": "StoreOrder"
+      },
+      "StoreOrder": {
+        "Type": "Task",
+        "Resource": "${storage_arn}",
+        "Next": "SendToQueue"
+      },
+      "SendToQueue": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::sqs:sendMessage",
+        "Parameters": {
+          "QueueUrl": "${order_queue_url}",
+          "MessageBody.$": "$"
+        },
+        "End": true
+      }
+    }
+  }
+  
