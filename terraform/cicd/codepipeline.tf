@@ -22,7 +22,7 @@ resource "aws_codepipeline" "terraform_pipeline" {
       output_artifacts = ["source_output"]
 
       configuration = {
-        Owner  = "<your-username>"
+        Owner  = "adityaoncloud"
         Repo   = "dofs-project"
         Branch = "main"
         OAuthToken = var.github_token
