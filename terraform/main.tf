@@ -209,5 +209,4 @@ resource "aws_cloudwatch_metric_alarm" "dlq_alert" {
 
 module "cicd" {
   source = "./cicd"
-  github_token = var.github_token  # Make sure this var is defined in root-level `variables.tf`
 }

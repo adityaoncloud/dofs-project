@@ -16,17 +16,16 @@ resource "aws_codepipeline" "terraform_pipeline" {
     action {
       name             = "Source"
       category         = "Source"
-      owner            = "ThirdParty"
-      provider         = "GitHub"
+      owner            = "AWS"
+      provider         = "CodeStarSourceConnection"
       version          = "1"
       output_artifacts = ["source_output"]
 
       configuration = {
-        Owner  = "adityaoncloud"
-        Repo   = "dofs-project"
-        Branch = "main"
-        OAuthToken = var.github_token
-      }
+      ConnectionArn        = "arn:aws:codeconnections:ap-south-1:879112120115:connection/983ae101-a17f-4b3e-a9df-bf5553e8622f"
+      FullRepositoryId     = "adityaoncloud/dofs-project"
+      BranchName           = "main"
+    }
     }
   }
 
