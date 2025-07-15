@@ -6,15 +6,14 @@ phases:
       python: 3.12
     commands:
       - echo Installing Terraform...
-      - rm -rf terraform                 # <== Safely remove directory or file
       - curl -O https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
       - unzip -o terraform_1.6.6_linux_amd64.zip
-      - chmod +x terraform
       - mv terraform /usr/local/bin/
   pre_build:
     commands:
       - echo Logging in to AWS
       - terraform --version
+      - ls
       - cd terraform
       - terraform init 
   build:
