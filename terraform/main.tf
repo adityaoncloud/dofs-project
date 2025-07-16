@@ -209,9 +209,9 @@ resource "aws_cloudwatch_metric_alarm" "dlq_alert" {
   }
 }
 
-# module "cicd" {
-#   source = "./cicd"
-# }
+module "cicd" {
+  source = "./cicd"
+}
 
 resource "aws_iam_policy" "dlq_dynamodb_policy" {
   name   = "dlq-dynamodb-putitem"
