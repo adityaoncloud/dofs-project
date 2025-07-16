@@ -248,5 +248,5 @@ The system follows an event-driven architecture:
 - API Gateway endpoints can be secured with API keys or AWS Cognito
 - DynamoDB tables use encryption at rest
 - SQS queues support encryption in transit
-- CodePipeline artifacts are stored in encrypted S3 buckets
+- CodePipeline artifacts are stored in encrypted S3   buckets
 
