@@ -9,6 +9,8 @@ module "dynamodb" {
   source = "./modules/dynamodb"
 }
 
+data "aws_caller_identity" "current" {}
+
 ##########################
 # 2. SQS Queues
 ##########################
@@ -55,7 +57,7 @@ resource "aws_iam_role_policy" "lambda_stepfn_policy" {
 
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.lambda_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
 ##########################
@@ -207,6 +209,23 @@ resource "aws_cloudwatch_metric_alarm" "dlq_alert" {
   }
 }
 
-module "cicd" {
-  source = "./cicd"
+# module "cicd" {
+#   source = "./cicd"
+# }
+
+resource "aws_iam_policy" "dlq_dynamodb_policy" {
+  name   = "dlq-dynamodb-putitem"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "dynamodb:PutItem"
+        ],
+        Resource = "arn:aws:dynamodb:ap-south-1:${data.aws_caller_identity.current.account_id}:table/failed_orders"
+      }
+    ]
+  })
 }
+
