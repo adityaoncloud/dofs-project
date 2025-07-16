@@ -116,6 +116,14 @@ module "api_gateway" {
   source     = "./modules/api_gateway"
   lambda_uri = module.api_handler_lambda.lambda_function_arn
 }
+# Lambda permission for API Gateway
+resource "aws_lambda_permission" "api_gateway_lambda" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = module.api_handler_lambda.lambda_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${module.api_gateway.api_arn}/*/*"
+}
 
 
 ##########################
@@ -229,14 +237,6 @@ resource "aws_iam_policy" "dlq_dynamodb_policy" {
   })
 }
 
-# Lambda permission for API Gateway
-resource "aws_lambda_permission" "api_gateway_lambda" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = module.api_handler_lambda.lambda_function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${module.api_gateway.api_arn}/*/*"
-}
 
 resource "aws_iam_role" "api_gateway_cloudwatch_role" {
   name = "api-gateway-cloudwatch-role"

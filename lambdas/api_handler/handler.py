@@ -7,8 +7,11 @@ stepfunctions = boto3.client('stepfunctions')
 STATE_MACHINE_ARN = os.environ['STATE_MACHINE_ARN']
 
 def lambda_handler(event, context):
+    print("Received event:", json.dumps(event))  # <-- Add this line
+
     try:
         body = json.loads(event['body'])
+
         order_id = str(uuid.uuid4())
         body['order_id'] = order_id
 
@@ -27,6 +30,7 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
+        print("Exception:", str(e))  # <-- Also log the error
         return {
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
