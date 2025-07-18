@@ -19,7 +19,7 @@ module "sqs" {
 }
 
 ##########################
-# 3. IAM Roles (Optional: can move to dedicated file later)
+# 3. IAM Roles (Admin Access for Testing)
 ##########################
 resource "aws_iam_role" "lambda_exec_role" {
   name = "lambda_exec_role"
@@ -34,30 +34,23 @@ resource "aws_iam_role" "lambda_exec_role" {
       Action = "sts:AssumeRole"
     }]
   })
+
+  tags = {
+    Environment = "testing"
+    Purpose     = "lambda-execution-with-admin-access"
+  }
 }
 
-resource "aws_iam_role_policy" "lambda_stepfn_policy" {
-  name = "lambda-stepfn-exec"
-  role = aws_iam_role.lambda_exec_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "states:StartExecution"
-        ],
-        Resource = "arn:aws:states:ap-south-1:879112120115:stateMachine:order-orchestrator"
-      }
-    ]
-  })
-}
-
-
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
+# Administrator access for testing purposes - gives full AWS permissions
+resource "aws_iam_role_policy_attachment" "lambda_admin_access" {
   role       = aws_iam_role.lambda_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+# Basic Lambda execution policy (CloudWatch Logs access)
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
+  role       = aws_iam_role.lambda_exec_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 ##########################
@@ -116,6 +109,7 @@ module "api_gateway" {
   source     = "./modules/api_gateway"
   lambda_uri = module.api_handler_lambda.lambda_function_arn
 }
+
 # Lambda permission for API Gateway
 resource "aws_lambda_permission" "api_gateway_lambda" {
   statement_id  = "AllowAPIGatewayInvoke"
@@ -125,6 +119,14 @@ resource "aws_lambda_permission" "api_gateway_lambda" {
   source_arn    = "${module.api_gateway.api_arn}/*/*"
 }
 
+# Fallback permission - allows any API Gateway in the account/region
+resource "aws_lambda_permission" "api_gateway_lambda_fallback" {
+  statement_id  = "AllowAPIGatewayInvokeFallback"
+  action        = "lambda:InvokeFunction"
+  function_name = module.api_handler_lambda.lambda_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:*"
+}
 
 ##########################
 # 6. Step Functions
@@ -142,11 +144,17 @@ resource "aws_iam_role" "stepfunctions_exec_role" {
       Action = "sts:AssumeRole"
     }]
   })
+
+  tags = {
+    Environment = "testing"
+    Purpose     = "stepfunctions-execution-with-admin-access"
+  }
 }
 
-resource "aws_iam_role_policy_attachment" "stepfn_full_access" {
+# Administrator access for Step Functions as well
+resource "aws_iam_role_policy_attachment" "stepfn_admin_access" {
   role       = aws_iam_role.stepfunctions_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
 module "stepfunctions" {
@@ -169,32 +177,7 @@ module "dlq_lambda" {
   }
 }
 
-resource "aws_iam_policy" "dlq_sqs_access" {
-  name        = "dlq-sqs-access"
-  description = "Allow DLQ Lambda to access SQS queue"
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = [
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
-        ],
-        Effect   = "Allow",
-        Resource = module.sqs.dlq_arn
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy_attachment" "attach_dlq_sqs_access" {
-  name       = "attach_dlq_sqs_access"
-  roles      = [aws_iam_role.lambda_exec_role.name]
-  policy_arn = aws_iam_policy.dlq_sqs_access.arn
-}
-
+# SQS Event Source Mapping for DLQ
 resource "aws_lambda_event_source_mapping" "dlq_trigger" {
   event_source_arn  = module.sqs.dlq_arn
   function_name     = module.dlq_lambda.lambda_function_name
@@ -202,6 +185,9 @@ resource "aws_lambda_event_source_mapping" "dlq_trigger" {
   enabled           = true
 }
 
+##########################
+# 7. CloudWatch Monitoring
+##########################
 resource "aws_cloudwatch_metric_alarm" "dlq_alert" {
   alarm_name          = "DLQDepthExceeded"
   comparison_operator = "GreaterThanThreshold"
@@ -217,27 +203,9 @@ resource "aws_cloudwatch_metric_alarm" "dlq_alert" {
   }
 }
 
-module "cicd" {
-  source = "./cicd"
-}
-
-resource "aws_iam_policy" "dlq_dynamodb_policy" {
-  name   = "dlq-dynamodb-putitem"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "dynamodb:PutItem"
-        ],
-        Resource = "arn:aws:dynamodb:ap-south-1:${data.aws_caller_identity.current.account_id}:table/failed_orders"
-      }
-    ]
-  })
-}
-
-
+##########################
+# 8. API Gateway CloudWatch Role
+##########################
 resource "aws_iam_role" "api_gateway_cloudwatch_role" {
   name = "api-gateway-cloudwatch-role"
 
@@ -260,7 +228,32 @@ resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
-# Set the CloudWatch role for API Gateway account settings
 resource "aws_api_gateway_account" "api_gateway_account" {
   cloudwatch_role_arn = aws_iam_role.api_gateway_cloudwatch_role.arn
+}
+
+##########################
+# 9. CI/CD Module
+##########################
+module "cicd" {
+  source = "./cicd"
+}
+
+##########################
+# 10. Debugging Outputs
+##########################
+output "lambda_function_arn" {
+  value = module.api_handler_lambda.lambda_function_arn
+}
+
+output "api_gateway_arn" {
+  value = module.api_gateway.api_arn
+}
+
+output "lambda_permission_source_arn" {
+  value = "${module.api_gateway.api_arn}/*/*"
+}
+
+output "fallback_permission_arn" {
+  value = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:*"
 }
