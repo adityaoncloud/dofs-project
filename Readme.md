@@ -26,7 +26,7 @@ Before you begin, make sure you have the following installed and configured:
 ```
 dofs-project/
 ├── lambdas/
-│   ├── api_handler/
+│   ├── api_handler
 │   ├── validator/
 │   ├── order_storage/
 │   ├── fulfill_order/
