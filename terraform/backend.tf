@@ -4,5 +4,7 @@ terraform {
     key    = "dofs/dev/terraform.tfstate"
     region = "ap-south-1"
     encrypt = true
+    dynamodb_table = "dofs-terraform-lock"
+
  }
 }
